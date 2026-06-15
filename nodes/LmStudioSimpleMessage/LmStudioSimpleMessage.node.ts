@@ -451,7 +451,6 @@ export class LmStudioSimpleMessage implements INodeType {
 				},
 				default: '',
 				required: true,
-				noDataExpression: true,
 				displayOptions: {
 					show: {
 						operation: ['sendMessage'],
@@ -677,7 +676,6 @@ export class LmStudioSimpleMessage implements INodeType {
 				},
 				default: '',
 				required: true,
-				noDataExpression: true,
 				displayOptions: {
 					show: {
 						operation: ['loadModel'],
@@ -774,7 +772,6 @@ export class LmStudioSimpleMessage implements INodeType {
 				},
 				default: '',
 				required: true,
-				noDataExpression: true,
 				displayOptions: {
 					show: {
 						operation: ['unloadModel'],
