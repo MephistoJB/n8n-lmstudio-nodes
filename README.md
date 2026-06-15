@@ -113,7 +113,7 @@ LM_STUDIO_URL=http://localhost:1234 npm run test:integration -- --runInBand
 
 ## Automated npm Publishing
 
-The repository includes [release.yml](/Users/johnsmacminiserver/Documents/Programmierung/n8n-lmstudio-nodes/.github/workflows/release.yml:1) for npm Trusted Publishing via GitHub Actions OIDC.
+The repository includes [release.yml](/Users/johnsmacminiserver/Documents/Programmierung/n8n-lmstudio-nodes/.github/workflows/release.yml:1) for automated npm publishing via GitHub Actions using the repository secret `NPM_TOKEN`.
 
 Behavior:
 
@@ -122,9 +122,7 @@ Behavior:
 - the new version is published to npm with provenance
 - `package.json`, `package-lock.json`, and a git tag are pushed back automatically
 
-Trusted Publishing reference:
-
-- [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers/)
+The release workflow expects the GitHub repository secret `NPM_TOKEN` to be present with publish rights for `@mephistojb/n8n-nodes-lmstudio`.
 
 ## Notes on LM Studio Compatibility
 
