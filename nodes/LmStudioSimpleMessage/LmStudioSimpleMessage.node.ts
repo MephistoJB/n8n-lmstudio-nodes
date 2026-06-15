@@ -710,7 +710,7 @@ export class LmStudioSimpleMessage implements INodeType {
 							minValue: 1,
 						},
 						default: 0,
-						description: 'Llama.cpp engines only. Number of input tokens evaluated together',
+						description: 'Llama.cpp engines only. Number of input tokens evaluated together.',
 					},
 					{
 						displayName: 'Flash Attention',
