@@ -22,15 +22,46 @@
 
 ## Project
 
+This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node package and publishes to npm from GitHub Actions.
+
 ## Stack
+
+- TypeScript
+- n8n community node tooling via `@n8n/node-cli`
+- Jest for unit and integration tests
+- GitHub Actions for CI and release automation
+- npm Trusted Publishing via GitHub OIDC for package publishing
 
 ## Commands
 
+- `npm install` - install dependencies
+- `npm run build` - build the node package
+- `npm run lint` - run lint checks
+- `npm test -- --runInBand` - run unit tests
+- `LM_STUDIO_URL=http://localhost:1234 npm run test:integration -- --runInBand` - run integration tests against LM Studio
+
 ## Architecture
+
+- `credentials/` contains the LM Studio credential type.
+- `nodes/LmStudioSimpleMessage/` contains the community node implementation and icons.
+- `tests/unit/` contains unit tests for request handling and node behavior.
+- `tests/integration/` contains live tests against a running LM Studio instance.
+- `.github/workflows/ci.yml` runs CI.
+- `.github/workflows/release.yml` publishes to npm through Trusted Publishing.
 
 ## Rules
 
+- Do not commit `token.md` or any npm, GitHub, or LM Studio secrets.
+- Keep the release workflow aligned with npm Trusted Publishing.
+- Prefer minimal workflow and documentation changes when adjusting release automation.
+
 ## Workflow
+
+- Read this file before making changes.
+- Run the relevant validation after changes.
+- For npm publishing automation, prefer GitHub-hosted Actions with OIDC over long-lived npm tokens.
 
 ## Out of scope
 
+- Do not publish manually unless explicitly asked.
+- Do not fall back to storing an `NPM_TOKEN` in GitHub when Trusted Publishing is intended.

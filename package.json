@@ -1,9 +1,9 @@
 {
-	"name": "n8n-nodes-lmstudio",
+	"name": "@mephistojb/n8n-nodes-lmstudio",
 	"version": "0.1.1",
 	"description": "N8N nodes for LM Studio integration with JSON schema support",
 	"license": "MIT",
-	"homepage": "https://github.com/gslopez/n8n-lmstudio-nodes",
+	"homepage": "https://github.com/MephistoJB/n8n-lmstudio-nodes",
 	"keywords": [
 		"n8n-community-node-package",
 		"n8n",
@@ -12,12 +12,11 @@
 		"llm"
 	],
 	"author": {
-		"name": "Gonzalo Lopez",
-		"email": "gslopez@example.com"
+		"name": "MephistoJB"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/gslopez/n8n-lmstudio-nodes.git"
+		"url": "git+https://github.com/MephistoJB/n8n-lmstudio-nodes.git"
 	},
 	"scripts": {
 		"build": "n8n-node build",
