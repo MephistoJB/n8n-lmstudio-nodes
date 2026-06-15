@@ -50,7 +50,7 @@ This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node pac
 - `tests/unit/LmStudioSimpleMessage.node.test.ts` -> unit coverage for auth headers, API mode switching, model management operations, and request shaping
 - `tests/integration/LmStudioSimpleMessage.integration.test.ts` -> live LM Studio integration coverage
 - `.github/workflows/ci.yml` -> CI checks for pushes and pull requests
-- `.github/workflows/release.yml` -> automatic version bump, npm publish via `NPM_TOKEN`, and git tag workflow on `master`
+- `.github/workflows/release.yml` -> automatic version bump, npm Trusted Publishing, and git tag workflow on `master`
 
 ## Rules
 
@@ -67,7 +67,7 @@ This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node pac
 - Make focused changes that match existing n8n node patterns.
 - Prefer native LM Studio and n8n tooling over ad hoc workarounds.
 - Validate LM Studio behavior with local integration tests when the desktop app is reachable.
-- The release workflow on `master` expects the GitHub repository secret `NPM_TOKEN` to exist with publish rights for `@mephistojb/n8n-nodes-lmstudio`.
+- The release workflow on `master` expects npm Trusted Publishing to be configured for this GitHub repository, package, and `.github/workflows/release.yml`.
 - Ask before destructive git, docker, Komodo, n8n, or npm actions if the intent is ambiguous.
 
 ## Out of scope

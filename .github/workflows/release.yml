@@ -44,9 +44,7 @@ jobs:
       - name: Bump patch version
         run: npm version patch --no-git-tag-version
 
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm with Trusted Publishing
         run: npm publish --provenance --access public --ignore-scripts
 
       - name: Commit and tag release
