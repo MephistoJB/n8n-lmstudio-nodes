@@ -411,10 +411,10 @@ export class LmStudioSimpleMessage implements INodeType {
 				default: 'sendMessage',
 				options: [
 					{
-						name: 'Send Message',
-						value: 'sendMessage',
-						description: 'Send a prompt to a model',
-						action: 'Send a message to a model',
+						name: 'List Loaded Models',
+						value: 'listLoadedModels',
+						description: 'List only currently loaded model instances',
+						action: 'List loaded models',
 					},
 					{
 						name: 'List Models',
@@ -423,16 +423,16 @@ export class LmStudioSimpleMessage implements INodeType {
 						action: 'List models',
 					},
 					{
-						name: 'List Loaded Models',
-						value: 'listLoadedModels',
-						description: 'List only currently loaded model instances',
-						action: 'List loaded models',
-					},
-					{
 						name: 'Load Model',
 						value: 'loadModel',
 						description: 'Load a model into memory',
 						action: 'Load a model',
+					},
+					{
+						name: 'Send Message',
+						value: 'sendMessage',
+						description: 'Send a prompt to a model',
+						action: 'Send a message to a model',
 					},
 					{
 						name: 'Unload Model',
