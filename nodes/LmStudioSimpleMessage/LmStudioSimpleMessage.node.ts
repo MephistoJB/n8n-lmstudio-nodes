@@ -190,10 +190,16 @@ function parseOptionalJson(
 	try {
 		const parsed = JSON.parse(value) as unknown;
 		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-			throw new Error('Expected a JSON object');
+			throw new NodeOperationError(node.getNode(), `${fieldName} must be a JSON object`, {
+				itemIndex,
+			});
 		}
 		return parsed as IDataObject;
 	} catch (error) {
+		if (error instanceof NodeOperationError) {
+			throw error;
+		}
+
 		throw new NodeOperationError(
 			node.getNode(),
 			`Invalid ${fieldName}: ${(error as Error).message}`,
@@ -348,7 +354,9 @@ async function fetchModels(
 		if (models.length > 0) {
 			return models;
 		}
-	} catch {}
+	} catch (error) {
+		void error;
+	}
 
 	const fallback = await lmStudioRequest<unknown>(context, credentials, {
 		method: 'GET',
@@ -444,7 +452,7 @@ export class LmStudioSimpleMessage implements INodeType {
 					},
 				},
 				description:
-					'The chat-capable model identifier to use. Choose from the list or provide an expression.',
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
 				displayName: 'Message',
@@ -502,22 +510,12 @@ export class LmStudioSimpleMessage implements INodeType {
 								value: 'openaiCompatible',
 							},
 							{
-								name: 'Native API v1',
+								name: 'Native API V1',
 								value: 'nativeV1',
 							},
 						],
 						description:
 							'OpenAI Compatible keeps structured JSON schema support. Native API v1 exposes LM Studio-specific chat options like context length.',
-					},
-					{
-						displayName: 'System Prompt',
-						name: 'systemPrompt',
-						type: 'string',
-						default: '',
-						typeOptions: {
-							rows: 3,
-						},
-						description: 'Optional system prompt for the model',
 					},
 					{
 						displayName: 'Context Length',
@@ -530,38 +528,14 @@ export class LmStudioSimpleMessage implements INodeType {
 						description: 'Native API v1 only. Maximum context length for the request.',
 					},
 					{
-						displayName: 'Temperature',
-						name: 'temperature',
-						type: 'number',
-						typeOptions: {
-							minValue: 0,
-							maxValue: 2,
-							numberPrecision: 2,
-						},
-						default: 0.3,
-						description: 'Controls randomness in generation',
-					},
-					{
-						displayName: 'Top P',
-						name: 'topP',
-						type: 'number',
-						typeOptions: {
-							minValue: 0,
-							maxValue: 1,
-							numberPrecision: 2,
-						},
-						default: 0,
-						description: 'Nucleus sampling threshold',
-					},
-					{
-						displayName: 'Top K',
-						name: 'topK',
+						displayName: 'Max Output Tokens',
+						name: 'maxOutputTokens',
 						type: 'number',
 						typeOptions: {
 							minValue: 1,
 						},
 						default: 0,
-						description: 'Limit next-token selection to the top-k tokens',
+						description: 'Maximum number of tokens to generate',
 					},
 					{
 						displayName: 'Min P',
@@ -576,6 +550,38 @@ export class LmStudioSimpleMessage implements INodeType {
 						description: 'Minimum base probability for token selection',
 					},
 					{
+						displayName: 'Previous Response ID',
+						name: 'previousResponseId',
+						type: 'string',
+						default: '',
+						description: 'Native API v1 only. Continue a stored chat response chain.',
+					},
+					{
+						displayName: 'Raw Advanced JSON',
+						name: 'rawOptionsJson',
+						type: 'json',
+						typeOptions: {
+							rows: 6,
+						},
+						default: '{}',
+						description:
+							'Additional request fields merged into the LM Studio request body. Use this to access API options that are not exposed individually.',
+					},
+					{
+						displayName: 'Reasoning',
+						name: 'reasoning',
+						type: 'options',
+						default: 'off',
+						options: [
+							{ name: 'High', value: 'high' },
+							{ name: 'Low', value: 'low' },
+							{ name: 'Medium', value: 'medium' },
+							{ name: 'Off', value: 'off' },
+							{ name: 'On', value: 'on' },
+						],
+						description: 'Native API v1 only. Reasoning mode for supported models.',
+					},
+					{
 						displayName: 'Repeat Penalty',
 						name: 'repeatPenalty',
 						type: 'number',
@@ -585,30 +591,6 @@ export class LmStudioSimpleMessage implements INodeType {
 						},
 						default: 0,
 						description: 'Penalty for repeated token sequences',
-					},
-					{
-						displayName: 'Max Output Tokens',
-						name: 'maxOutputTokens',
-						type: 'number',
-						typeOptions: {
-							minValue: 1,
-						},
-						default: 0,
-						description: 'Maximum number of tokens to generate',
-					},
-					{
-						displayName: 'Reasoning',
-						name: 'reasoning',
-						type: 'options',
-						default: '',
-						options: [
-							{ name: 'Off', value: 'off' },
-							{ name: 'Low', value: 'low' },
-							{ name: 'Medium', value: 'medium' },
-							{ name: 'High', value: 'high' },
-							{ name: 'On', value: 'on' },
-						],
-						description: 'Native API v1 only. Reasoning mode for supported models.',
 					},
 					{
 						displayName: 'Seed',
@@ -622,14 +604,29 @@ export class LmStudioSimpleMessage implements INodeType {
 						name: 'store',
 						type: 'boolean',
 						default: true,
-						description: 'Native API v1 only. Whether LM Studio should store the chat thread.',
+						description: 'Whether LM Studio should store the chat thread',
 					},
 					{
-						displayName: 'Previous Response ID',
-						name: 'previousResponseId',
+						displayName: 'System Prompt',
+						name: 'systemPrompt',
 						type: 'string',
 						default: '',
-						description: 'Native API v1 only. Continue a stored chat response chain.',
+						typeOptions: {
+							rows: 3,
+						},
+						description: 'Optional system prompt for the model',
+					},
+					{
+						displayName: 'Temperature',
+						name: 'temperature',
+						type: 'number',
+						typeOptions: {
+							minValue: 0,
+							maxValue: 2,
+							numberPrecision: 2,
+						},
+						default: 0.3,
+						description: 'Controls randomness in generation',
 					},
 					{
 						displayName: 'Timeout (Seconds)',
@@ -642,15 +639,26 @@ export class LmStudioSimpleMessage implements INodeType {
 						description: 'HTTP timeout. Set to 0 to disable.',
 					},
 					{
-						displayName: 'Raw Advanced JSON',
-						name: 'rawOptionsJson',
-						type: 'json',
+						displayName: 'Top K',
+						name: 'topK',
+						type: 'number',
 						typeOptions: {
-							rows: 6,
+							minValue: 1,
 						},
-						default: '{}',
-						description:
-							'Additional request fields merged into the LM Studio request body. Use this to access API options that are not exposed individually.',
+						default: 0,
+						description: 'Limit next-token selection to the top-k tokens',
+					},
+					{
+						displayName: 'Top P',
+						name: 'topP',
+						type: 'number',
+						typeOptions: {
+							minValue: 0,
+							maxValue: 1,
+							numberPrecision: 2,
+						},
+						default: 0,
+						description: 'Nucleus sampling threshold',
 					},
 				],
 			},
@@ -669,7 +677,8 @@ export class LmStudioSimpleMessage implements INodeType {
 						operation: ['loadModel'],
 					},
 				},
-				description: 'The model identifier to load',
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
 				displayName: 'Advanced',
@@ -701,21 +710,14 @@ export class LmStudioSimpleMessage implements INodeType {
 							minValue: 1,
 						},
 						default: 0,
-						description: 'llama.cpp engines only. Number of input tokens evaluated together.',
+						description: 'Llama.cpp engines only. Number of input tokens evaluated together',
 					},
 					{
 						displayName: 'Flash Attention',
 						name: 'flashAttention',
 						type: 'boolean',
 						default: false,
-						description: 'Enable flash attention where supported',
-					},
-					{
-						displayName: 'Offload KV Cache to GPU',
-						name: 'offloadKvCacheToGpu',
-						type: 'boolean',
-						default: false,
-						description: 'Move KV cache to the GPU where supported',
+						description: 'Whether to enable flash attention where supported',
 					},
 					{
 						displayName: 'Number of Experts',
@@ -728,14 +730,11 @@ export class LmStudioSimpleMessage implements INodeType {
 						description: 'Mixture-of-experts models only',
 					},
 					{
-						displayName: 'TTL Seconds',
-						name: 'ttlSeconds',
-						type: 'number',
-						typeOptions: {
-							minValue: 1,
-						},
-						default: 0,
-						description: 'Automatically unload the model after the given idle time',
+						displayName: 'Offload KV Cache to GPU',
+						name: 'offloadKvCacheToGpu',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to move the KV cache to the GPU where supported',
 					},
 					{
 						displayName: 'Raw Advanced JSON',
@@ -746,12 +745,22 @@ export class LmStudioSimpleMessage implements INodeType {
 						},
 						default: '{}',
 						description:
-							'Additional load request fields merged into the request body for unsupported LM Studio options.',
+							'Additional load request fields merged into the request body for unsupported LM Studio options',
+					},
+					{
+						displayName: 'TTL Seconds',
+						name: 'ttlSeconds',
+						type: 'number',
+						typeOptions: {
+							minValue: 1,
+						},
+						default: 0,
+						description: 'Automatically unload the model after the given idle time',
 					},
 				],
 			},
 			{
-				displayName: 'Instance ID',
+				displayName: 'Instance Name or ID',
 				name: 'instanceId',
 				type: 'options',
 				typeOptions: {
@@ -765,7 +774,8 @@ export class LmStudioSimpleMessage implements INodeType {
 						operation: ['unloadModel'],
 					},
 				},
-				description: 'The loaded model instance to unload',
+				description:
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 		],
 	};
