@@ -114,6 +114,7 @@ LM_STUDIO_URL=http://localhost:1234 npm run test:integration -- --runInBand
 ## Automated npm Publishing
 
 The repository includes [release.yml](/Users/johnsmacminiserver/Documents/Programmierung/n8n-lmstudio-nodes/.github/workflows/release.yml:1) for npm Trusted Publishing via GitHub Actions OIDC.
+The GitHub Actions workflows use `actions/setup-node@v6` with Node.js `24`.
 
 Behavior:
 

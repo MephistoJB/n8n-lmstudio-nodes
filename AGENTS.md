@@ -30,6 +30,7 @@ This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node pac
 - Jest for unit and integration tests
 - `@n8n/node-cli` for build, lint, and packaging
 - GitHub Actions for CI and automated npm publishing
+- GitHub Actions use `actions/setup-node@v6` with Node.js `24`
 - LM Studio REST APIs:
   - native `/api/v1/*` for model management and native chat
   - OpenAI-compatible `/v1/*` for structured-output chat
