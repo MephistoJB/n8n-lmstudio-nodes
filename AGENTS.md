@@ -47,9 +47,9 @@ This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node pac
 ## Architecture
 
 - `credentials/LmStudioApi.credentials.ts` -> LM Studio credential definition and credential connectivity test
-- `nodes/LmStudioSimpleMessage/LmStudioSimpleMessage.node.ts` -> single multi-operation node for chat, listing models, loading models, and unloading models
-- `tests/unit/LmStudioSimpleMessage.node.test.ts` -> unit coverage for auth headers, API mode switching, model management operations, and request shaping
-- `tests/integration/LmStudioSimpleMessage.integration.test.ts` -> live LM Studio integration coverage
+- `nodes/LmStudio/LmStudio.node.ts` -> single multi-operation node for chat, listing models, loading models, and unloading models
+- `tests/unit/LmStudio.node.test.ts` -> unit coverage for auth headers, API mode switching, model management operations, and request shaping
+- `tests/integration/LmStudio.integration.test.ts` -> live LM Studio integration coverage
 - `.github/workflows/ci.yml` -> CI checks for pushes and pull requests
 - `.github/workflows/release.yml` -> automatic version bump, npm Trusted Publishing, and git tag workflow on `master`
 

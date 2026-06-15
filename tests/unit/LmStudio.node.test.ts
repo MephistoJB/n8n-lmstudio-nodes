@@ -1,11 +1,11 @@
 import type { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError } from 'n8n-workflow';
-import { LmStudioSimpleMessage } from 'nodes/LmStudioSimpleMessage/LmStudioSimpleMessage.node';
+import { LmStudio } from 'nodes/LmStudio/LmStudio.node';
 
 const mockNode = {
 	id: 'test-id',
 	name: 'LM Studio Test',
-	type: 'n8n-nodes-lmstudio.lmStudioSimpleMessage',
+	type: 'n8n-nodes-lmstudio.lmStudio',
 	typeVersion: 1,
 	position: [0, 0] as [number, number],
 	parameters: {},
@@ -75,11 +75,11 @@ function createLoadOptionsMock(credentialOverrides: Record<string, unknown> = {}
 	} as unknown as ILoadOptionsFunctions;
 }
 
-describe('LmStudioSimpleMessage', () => {
-	let node: LmStudioSimpleMessage;
+describe('LmStudio', () => {
+	let node: LmStudio;
 
 	beforeEach(() => {
-		node = new LmStudioSimpleMessage();
+		node = new LmStudio();
 	});
 
 	describe('execute', () => {

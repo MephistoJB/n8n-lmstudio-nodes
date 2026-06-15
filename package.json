@@ -41,7 +41,7 @@
 			"dist/credentials/LmStudioApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/LmStudioSimpleMessage/LmStudioSimpleMessage.node.js"
+			"dist/nodes/LmStudio/LmStudio.node.js"
 		]
 	},
 	"devDependencies": {

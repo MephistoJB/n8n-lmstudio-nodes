@@ -8,7 +8,7 @@
 import * as http from 'http';
 import * as https from 'https';
 import type { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-workflow';
-import { LmStudioSimpleMessage } from 'nodes/LmStudioSimpleMessage/LmStudioSimpleMessage.node';
+import { LmStudio } from 'nodes/LmStudio/LmStudio.node';
 
 const LM_STUDIO_URL = process.env.LM_STUDIO_URL;
 const LM_STUDIO_MODEL = process.env.LM_STUDIO_MODEL;
@@ -152,12 +152,12 @@ function createRealExecuteMock(params: Record<string, unknown> = {}) {
 	} as unknown as IExecuteFunctions;
 }
 
-describeIf('LmStudioSimpleMessage (integration)', () => {
-	let node: LmStudioSimpleMessage;
+describeIf('LmStudio (integration)', () => {
+	let node: LmStudio;
 	let chatModel: ResolvedChatModel;
 
 	beforeAll(async () => {
-		node = new LmStudioSimpleMessage();
+		node = new LmStudio();
 		chatModel = await resolveChatModel();
 	});
 

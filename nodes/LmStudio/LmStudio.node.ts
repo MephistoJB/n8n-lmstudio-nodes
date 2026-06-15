@@ -382,10 +382,10 @@ function toModelOption(model: NormalizedModel): INodePropertyOptions {
 	};
 }
 
-export class LmStudioSimpleMessage implements INodeType {
+export class LmStudio implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'LM Studio',
-		name: 'lmStudioSimpleMessage',
+		name: 'lmStudio',
 		icon: { light: 'file:lmstudio.svg', dark: 'file:lmstudio.dark.svg' },
 		group: ['output'],
 		version: 1,
