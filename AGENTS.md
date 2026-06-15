@@ -1,6 +1,6 @@
 # AGENTS.md
 
-- You find relevant tokens in token.md. Never upload this to git or github
+- You find relevant tokens in `token.md`. Never upload this to git or GitHub.
 - You run on a Mac-mini Host.
 - The applications you are interested in are docker containers, which are administrated by a Komodo instance.
 - IMPORTANT: You are only allowed to run docker commands on the host without my explicit approval.
@@ -10,58 +10,68 @@
     - The n8n MCP requires `WEBHOOK_SECURITY_MODE=permissive` so it can reach n8n over the private Docker network; cloud metadata endpoints remain blocked.
     - n8n MCP authentication uses the local environment variable `N8N_MCP_AUTH_TOKEN`. Its login-persistent LaunchAgent is `~/Library/LaunchAgents/org.codex.n8n-mcp-token.plist`; never copy the token into this repository.
     - If the n8n MCP token changes, retrieve `AUTH_TOKEN` from the running `n8n-mcp` container through the Komodo MCP and update the local LaunchAgent.
-    - The n8n skills from `czlonkowski/n8n-skills` are installed globally under `~/.codex/skills/n8n-*`. Always consult `n8n-mcp-tools-expert` before using n8n MCP tools.    
-- Try to act with native docker commands. If necessary, you can  Komodo use the Komodo MCP and the komodo skill.
-- IMPORTANT: run type check after every code change (prevents broken types).
+    - The n8n skills from `czlonkowski/n8n-skills` are installed globally under `~/.codex/skills/n8n-*`. Always consult `n8n-mcp-tools-expert` before using n8n MCP tools.
+- Try to act with native docker commands. If necessary, you can use the Komodo MCP and the komodo skill.
+- IMPORTANT: run type check after every code change.
 - Make minimal changes, don't refactor unrelated code.
-- you have also access to other servers via ssh. ask for access when needed. if i give you access, save it here.
-- Create separate commits per logical change. Upload to github only when asked by me.
+- You have also access to other servers via ssh. Ask for access when needed. If I give you access, save it here.
+- Create separate commits per logical change. Upload to GitHub only when asked by me.
 - When unsure, explain both approaches and let me choose.
-- When you update the code, update this AGENTS.md and the README.md if necessary to reflect the changes.
-- Fill out the next chapters and keep them up to date. You find an example in AGENTS.md.example
+- When you update the code, update this `AGENTS.md` and the `README.md` if necessary to reflect the changes.
 
 ## Project
 
-This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node package and publishes to npm from GitHub Actions.
+This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node package for connecting n8n to a local LM Studio instance. The package supports both inference and model lifecycle management from a single node.
 
 ## Stack
 
 - TypeScript
-- n8n community node tooling via `@n8n/node-cli`
+- `n8n-workflow` community node APIs
 - Jest for unit and integration tests
-- GitHub Actions for CI and release automation
-- npm Trusted Publishing via GitHub OIDC for package publishing
+- `@n8n/node-cli` for build, lint, and packaging
+- GitHub Actions for CI and automated npm publishing
+- LM Studio REST APIs:
+  - native `/api/v1/*` for model management and native chat
+  - OpenAI-compatible `/v1/*` for structured-output chat
 
 ## Commands
 
 - `npm install` - install dependencies
-- `npm run build` - build the node package
-- `npm run lint` - run lint checks
+- `npm run typecheck` - run `tsc --noEmit`
+- `npm run lint` - run n8n linting
+- `npm run build` - build the community node package
 - `npm test -- --runInBand` - run unit tests
-- `LM_STUDIO_URL=http://localhost:1234 npm run test:integration -- --runInBand` - run integration tests against LM Studio
+- `LM_STUDIO_URL=http://localhost:1234 npm run test:integration -- --runInBand` - run integration tests against a local LM Studio instance
 
 ## Architecture
 
-- `credentials/` contains the LM Studio credential type.
-- `nodes/LmStudioSimpleMessage/` contains the community node implementation and icons.
-- `tests/unit/` contains unit tests for request handling and node behavior.
-- `tests/integration/` contains live tests against a running LM Studio instance.
-- `.github/workflows/ci.yml` runs CI.
-- `.github/workflows/release.yml` publishes to npm through Trusted Publishing.
+- `credentials/LmStudioApi.credentials.ts` -> LM Studio credential definition and credential connectivity test
+- `nodes/LmStudioSimpleMessage/LmStudioSimpleMessage.node.ts` -> single multi-operation node for chat, listing models, loading models, and unloading models
+- `tests/unit/LmStudioSimpleMessage.node.test.ts` -> unit coverage for auth headers, API mode switching, model management operations, and request shaping
+- `tests/integration/LmStudioSimpleMessage.integration.test.ts` -> live LM Studio integration coverage
+- `.github/workflows/ci.yml` -> CI checks for pushes and pull requests
+- `.github/workflows/release.yml` -> automatic version bump, npm Trusted Publishing, and git tag workflow on `master`
 
 ## Rules
 
-- Do not commit `token.md` or any npm, GitHub, or LM Studio secrets.
-- Keep the release workflow aligned with npm Trusted Publishing.
-- Prefer minimal workflow and documentation changes when adjusting release automation.
+- Prefer `/api/v1/models`, `/api/v1/models/load`, and `/api/v1/models/unload` for model management.
+- Preserve the credential name `lmStudioApi` because n8n workflows depend on it.
+- Keep advanced LM Studio settings behind collections or JSON passthrough fields instead of exposing everything in the default UI.
+- Do not commit `token.md`, npm tokens, LM Studio API tokens, or other local secrets.
+- Keep `dist/` generated by the build. Do not hand-edit generated files.
+- After every code change, run `npm run typecheck` at minimum.
 
 ## Workflow
 
-- Read this file before making changes.
-- Run the relevant validation after changes.
-- For npm publishing automation, prefer GitHub-hosted Actions with OIDC over long-lived npm tokens.
+- Start by reading this file and checking `git status --short`.
+- Make focused changes that match existing n8n node patterns.
+- Prefer native LM Studio and n8n tooling over ad hoc workarounds.
+- Validate LM Studio behavior with local integration tests when the desktop app is reachable.
+- The release workflow on `master` expects npm Trusted Publishing to be configured for this GitHub repository and workflow.
+- Ask before destructive git, docker, Komodo, n8n, or npm actions if the intent is ambiguous.
 
 ## Out of scope
 
-- Do not publish manually unless explicitly asked.
-- Do not fall back to storing an `NPM_TOKEN` in GitHub when Trusted Publishing is intended.
+- Do not change LM Studio desktop settings or server guardrails unless explicitly asked.
+- Do not rotate or print secrets from `token.md`, n8n MCP auth, npm, or GitHub.
+- Do not modify unrelated Docker, Komodo, or n8n infrastructure.

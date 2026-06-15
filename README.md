@@ -1,16 +1,19 @@
-# n8n-nodes-lmstudio
+# @mephistojb/n8n-nodes-lmstudio
 
-An [n8n](https://n8n.io) community node for [LM Studio](https://lmstudio.ai) — run local LLMs with optional JSON schema for structured outputs.
+An [n8n](https://n8n.io) community node for [LM Studio](https://lmstudio.ai) that covers both chat and local model management.
 
 ## Features
 
-- **Dynamic model selector** — fetches available models from your LM Studio server, shows loaded/unloaded state and quantization info
-- **Structured JSON output** — provide a JSON schema and get validated, parsed responses
-- **Usable as a tool** — can be used as a tool node in n8n AI agent workflows
+- **One node, multiple operations**: `Send Message`, `List Models`, `Load Model`, and `Unload Model`
+- **LM Studio auth support**: credentials forward the bearer token during connectivity checks, model listing, and execution requests
+- **Model management**: inspect loaded and unloaded models, load them with custom settings, and unload active instances
+- **Advanced request controls**: optional LM Studio API settings are hidden behind `Advanced` collections
+- **Structured JSON output**: OpenAI-compatible chat mode supports JSON schema output
+- **Native LM Studio API support**: use `/api/v1/chat` when you need LM Studio-specific fields such as `context_length`
 
 ## Installation
 
-### In n8n (recommended)
+### In n8n
 
 1. Go to **Settings > Community Nodes**
 2. Select **Install a community node**
@@ -27,71 +30,107 @@ npm install @mephistojb/n8n-nodes-lmstudio
 
 ### Credential: LM Studio API
 
-| Field    | Description                                    | Default                |
-|----------|------------------------------------------------|------------------------|
-| Host URL | LM Studio server URL with protocol and port    | `http://localhost:1234` |
-| API Key  | Optional API key (leave empty if not required)  |                        |
+| Field | Description | Default |
+| --- | --- | --- |
+| Host URL | LM Studio server URL including protocol and port | `http://localhost:1234` |
+| API Key | Optional API token from the LM Studio Developer server settings | empty |
 
-The credential tests connectivity by hitting your server's `/api/v0/models` endpoint.
+The credential test checks `GET /api/v1/models` and includes the bearer token when one is configured.
 
-### Node: LM Studio Simple Message
+## Node Operations
 
-| Parameter       | Description                                              |
-|-----------------|----------------------------------------------------------|
-| Model           | Select from available LLM/VLM models on your server      |
-| Message         | The user message to send                                 |
-| JSON Schema     | Optional JSON schema for structured output               |
-| Temperature     | Controls randomness (0–2, default 0.3)                   |
-| Max Tokens      | Maximum tokens to generate (empty = model default)       |
-| Timeout         | Request timeout in seconds (0 = no timeout)              |
+### Send Message
+
+Default mode uses the OpenAI-compatible `POST /v1/chat/completions` endpoint to preserve structured output support.
+
+Base inputs:
+
+| Field | Description |
+| --- | --- |
+| Model Name or ID | Chat-capable model to use |
+| Message | User prompt |
+| JSON Schema | Optional structured-output schema |
+
+Advanced options include:
+
+- `API Mode`
+- `System Prompt`
+- `Context Length`
+- `Temperature`
+- `Top P`
+- `Top K`
+- `Min P`
+- `Repeat Penalty`
+- `Max Output Tokens`
+- `Reasoning`
+- `Seed`
+- `Store Chat`
+- `Previous Response ID`
+- `Timeout`
+- `Raw Advanced JSON`
+
+`Raw Advanced JSON` is merged into the outgoing request body so you can pass additional LM Studio API fields without waiting for a node update.
+
+### List Models
+
+Returns one n8n item per model with metadata such as:
+
+- loaded state
+- loaded instances
+- quantization
+- max context length
+- selected variant
+- raw LM Studio response object
+
+### Load Model
+
+Uses `POST /api/v1/models/load`.
+
+Advanced options include:
+
+- `Context Length`
+- `Eval Batch Size`
+- `Flash Attention`
+- `Offload KV Cache to GPU`
+- `Number of Experts`
+- `TTL Seconds`
+- `Raw Advanced JSON`
+
+### Unload Model
+
+Uses `POST /api/v1/models/unload` and lets you pick from the currently loaded instance IDs.
 
 ## Development
 
 ```bash
 npm install
+npm run typecheck
+npm run lint
 npm run build
-npm run dev          # start n8n with hot reload
-npm run lint         # check for errors
-npm test             # run unit tests
-npm run test:integration  # run integration tests (requires LM Studio)
-```
-
-Integration tests require a running LM Studio server:
-
-```bash
-LM_STUDIO_URL=http://localhost:1234 npm run test:integration
+npm test -- --runInBand
+LM_STUDIO_URL=http://localhost:1234 npm run test:integration -- --runInBand
 ```
 
 ## Automated npm Publishing
 
-The repository now includes [release.yml](/Users/johnsmacminiserver/Documents/Programmierung/n8n-lmstudio-nodes/.github/workflows/release.yml:1) for npm Trusted Publishing via GitHub Actions OIDC.
+The repository includes [release.yml](/Users/johnsmacminiserver/Documents/Programmierung/n8n-lmstudio-nodes/.github/workflows/release.yml:1) for npm Trusted Publishing via GitHub Actions OIDC.
 
-What it does:
+Behavior:
 
-- runs on pushes to `master`
-- installs dependencies, lints, builds, and tests
-- bumps the patch version automatically
-- publishes with `npm publish --provenance --access public`
-- commits the updated `package.json` and `package-lock.json`
-- creates and pushes a matching git tag
-
-What you still need to configure on npm:
-
-1. Open the package settings for `@mephistojb/n8n-nodes-lmstudio` on npm.
-2. Add a Trusted Publisher for GitHub Actions.
-3. Use these values:
-   - Organization or user: `MephistoJB`
-   - Repository: `n8n-lmstudio-nodes`
-   - Workflow filename: `release.yml`
-   - Allowed action: `npm publish`
+- every push to `master` runs typecheck, lint, build, and tests
+- the workflow bumps the package version automatically
+- the new version is published to npm with provenance
+- `package.json`, `package-lock.json`, and a git tag are pushed back automatically
 
 Trusted Publishing reference:
 
 - [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers/)
 
-## Acknowledgments
+## Notes on LM Studio Compatibility
 
-This project was developed with assistance from [Claude](https://claude.ai), Anthropic's AI assistant.
+- The node prefers LM Studio's native REST API at `/api/v1/*` for model management.
+- Chat supports both `/api/v1/chat` and `/v1/chat/completions`.
+- A fallback to `/api/v0/models` remains for older LM Studio installations when model listing is needed.
 
 ## License
 

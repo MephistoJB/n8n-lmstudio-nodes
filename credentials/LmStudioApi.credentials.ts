@@ -35,8 +35,11 @@ export class LmStudioApi implements ICredentialType {
     test: ICredentialTestRequest = {
         request: {
             baseURL: '={{$credentials?.hostUrl}}',
-            url: '/api/v0/models',
+            url: '/api/v1/models',
             method: 'GET',
+            headers: {
+                Authorization: '={{$credentials?.apiKey ? "Bearer " + $credentials.apiKey : ""}}',
+            },
         },
     };
 }

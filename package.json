@@ -25,6 +25,7 @@
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",
+		"typecheck": "tsc --noEmit",
 		"test": "jest",
 		"test:integration": "jest --config jest.integration.config.js",
 		"prepublishOnly": "n8n-node prerelease",
