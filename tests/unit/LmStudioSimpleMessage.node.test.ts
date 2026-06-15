@@ -231,6 +231,42 @@ describe('LmStudioSimpleMessage', () => {
 			expect(result[0][0].json.loadedInstances).toHaveLength(1);
 		});
 
+		it('lists only currently loaded model instances', async () => {
+			const mock = createExecuteMock({ operation: 'listLoadedModels' });
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue({
+				models: [
+					{
+						type: 'llm',
+						key: 'loaded-model',
+						display_name: 'Loaded Model',
+						loaded_instances: [
+							{
+								id: 'loaded-model-instance',
+								config: { context_length: 32768, parallel: 2 },
+								remaining_ttl_seconds: 900,
+							},
+						],
+						max_context_length: 65536,
+					},
+					{
+						type: 'llm',
+						key: 'not-loaded-model',
+						display_name: 'Not Loaded Model',
+						loaded_instances: [],
+						max_context_length: 65536,
+					},
+				],
+			});
+
+			const result = await node.execute.call(mock);
+
+			expect(result[0]).toHaveLength(1);
+			expect(result[0][0].json.id).toBe('loaded-model');
+			expect(result[0][0].json.instanceId).toBe('loaded-model-instance');
+			expect(result[0][0].json.instanceContextLength).toBe(32768);
+			expect(result[0][0].json.instanceParallel).toBe(2);
+		});
+
 		it('loads a model with advanced options', async () => {
 			const mock = createExecuteMock({
 				operation: 'loadModel',

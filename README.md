@@ -4,7 +4,7 @@ An [n8n](https://n8n.io) community node for [LM Studio](https://lmstudio.ai) tha
 
 ## Features
 
-- **One node, multiple operations**: `Send Message`, `List Models`, `Load Model`, and `Unload Model`
+- **One node, multiple operations**: `Send Message`, `List Models`, `List Loaded Models`, `Load Model`, and `Unload Model`
 - **LM Studio auth support**: credentials forward the bearer token during connectivity checks, model listing, and execution requests
 - **Model management**: inspect loaded and unloaded models, load them with custom settings, and unload active instances
 - **Advanced request controls**: optional LM Studio API settings are hidden behind `Advanced` collections

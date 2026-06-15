@@ -184,6 +184,18 @@ describeIf('LmStudioSimpleMessage (integration)', () => {
 		expect(result[0][0].json).toHaveProperty('loaded');
 	});
 
+	it('lists loaded model instances via the execute path', async () => {
+		const mock = createRealExecuteMock({ operation: 'listLoadedModels' });
+
+		const result = await node.execute.call(mock);
+
+		expect(Array.isArray(result[0])).toBe(true);
+		for (const item of result[0]) {
+			expect(item.json.loaded).toBe(true);
+			expect(item.json).toHaveProperty('instanceId');
+		}
+	});
+
 	it('sends a message and gets a text response in OpenAI-compatible mode', async () => {
 		const mock = createRealExecuteMock({ modelName: chatModel.key });
 

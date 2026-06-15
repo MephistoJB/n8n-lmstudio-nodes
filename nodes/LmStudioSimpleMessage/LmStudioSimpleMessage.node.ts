@@ -423,6 +423,12 @@ export class LmStudioSimpleMessage implements INodeType {
 						action: 'List models',
 					},
 					{
+						name: 'List Loaded Models',
+						value: 'listLoadedModels',
+						description: 'List only currently loaded model instances',
+						action: 'List loaded models',
+					},
+					{
 						name: 'Load Model',
 						value: 'loadModel',
 						description: 'Load a model into memory',
@@ -850,6 +856,43 @@ export class LmStudioSimpleMessage implements INodeType {
 					itemIndex,
 					operation,
 				});
+
+				if (operation === 'listLoadedModels') {
+					const models = await fetchModels(this as unknown as RequestContext, credentials);
+					const loadedModels = models.filter((model) => model.loaded);
+
+					for (const model of loadedModels) {
+						for (const instance of model.loadedInstances) {
+							returnData.push({
+								json: {
+									id: model.id,
+									displayName: model.displayName,
+									type: model.type,
+									publisher: model.publisher,
+									quantization: model.quantization,
+									format: model.format,
+									maxContextLength: model.maxContextLength,
+									loadedContextLength: model.loadedContextLength,
+									loaded: model.loaded,
+									state: model.state,
+									instanceId: instance.id,
+									instanceContextLength: instance.contextLength,
+									instanceParallel: instance.parallel,
+									instanceRemainingTtlSeconds: instance.remainingTtlSeconds,
+									instanceRaw: instance.raw,
+									loadedInstances: model.loadedInstances,
+									variants: model.variants,
+									selectedVariant: model.selectedVariant,
+									description: model.description,
+									capabilities: model.capabilities,
+									raw: model.raw,
+								},
+								pairedItem: { item: itemIndex },
+							});
+						}
+					}
+					continue;
+				}
 
 				if (operation === 'listModels') {
 					const models = await fetchModels(this as unknown as RequestContext, credentials);
