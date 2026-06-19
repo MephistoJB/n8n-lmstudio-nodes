@@ -382,6 +382,82 @@ function toModelOption(model: NormalizedModel): INodePropertyOptions {
 	};
 }
 
+function getErrorText(error: unknown): string {
+	if (error instanceof Error) {
+		const details = [error.message];
+		const candidate = error as { description?: string; context?: { body?: unknown } };
+		if (candidate.description) {
+			details.push(candidate.description);
+		}
+		if (candidate.context?.body) {
+			details.push(JSON.stringify(candidate.context.body));
+		}
+		return details.join(' | ');
+	}
+
+	return String(error);
+}
+
+function isUnsupportedLoadTtlError(error: unknown): boolean {
+	return getErrorText(error).includes("Unrecognized key(s) in object: 'ttl'");
+}
+
+function buildLoadModelErrorMessage(
+	modelName: string,
+	requestBody: IDataObject,
+	error: unknown,
+): string {
+	return [
+		`LM Studio model load failed for "${modelName}" via /api/v1/models/load.`,
+		`Request body: ${JSON.stringify(requestBody)}.`,
+		`LM Studio error: ${getErrorText(error)}`,
+	].join(' ');
+}
+
+function buildLoadModelErrorDetails(
+	modelName: string,
+	requestBody: IDataObject,
+	error: unknown,
+): IDataObject {
+	return {
+		endpoint: '/api/v1/models/load',
+		modelName,
+		requestBody,
+		error: getErrorText(error),
+	};
+}
+
+function toContinueOnFailJson(error: unknown): IDataObject {
+	if (error instanceof NodeOperationError) {
+		let errorDetails: IDataObject | string | undefined;
+		if (typeof error.description === 'string' && error.description.length > 0) {
+			try {
+				errorDetails = JSON.parse(error.description) as IDataObject;
+			} catch {
+				errorDetails = error.description;
+			}
+		}
+
+		return {
+			error: error.message,
+			errorType: error.type,
+			errorDescription: error.description,
+			errorDetails,
+		};
+	}
+
+	if (error instanceof NodeApiError) {
+		return {
+			error: error.message,
+			errorDescription: error.description,
+		};
+	}
+
+	return {
+		error: error instanceof Error ? error.message : String(error),
+	};
+}
+
 export class LmStudio implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'LM Studio',
@@ -969,15 +1045,57 @@ export class LmStudio implements INodeType {
 						requestBody.ttl = ttlSeconds;
 					}
 
-					const response = await lmStudioRequest<IDataObject>(
-						this as unknown as RequestContext,
-						credentials,
-						{
-							method: 'POST',
-							path: '/api/v1/models/load',
-							body: requestBody,
-						},
-					);
+					let response: IDataObject;
+					try {
+						response = await lmStudioRequest<IDataObject>(
+							this as unknown as RequestContext,
+							credentials,
+							{
+								method: 'POST',
+								path: '/api/v1/models/load',
+								body: requestBody,
+							},
+						);
+					} catch (error) {
+						if ('ttl' in requestBody && isUnsupportedLoadTtlError(error)) {
+							delete requestBody.ttl;
+							try {
+								response = await lmStudioRequest<IDataObject>(
+									this as unknown as RequestContext,
+									credentials,
+									{
+										method: 'POST',
+										path: '/api/v1/models/load',
+										body: requestBody,
+									},
+								);
+							} catch (retryError) {
+								throw new NodeOperationError(
+									this.getNode(),
+									buildLoadModelErrorMessage(modelName, requestBody, retryError),
+									{
+										itemIndex,
+										type: 'model_load_failed',
+										description: JSON.stringify(
+											buildLoadModelErrorDetails(modelName, requestBody, retryError),
+										),
+									},
+								);
+							}
+						} else {
+							throw new NodeOperationError(
+								this.getNode(),
+								buildLoadModelErrorMessage(modelName, requestBody, error),
+								{
+									itemIndex,
+									type: 'model_load_failed',
+									description: JSON.stringify(
+										buildLoadModelErrorDetails(modelName, requestBody, error),
+									),
+								},
+							);
+						}
+					}
 
 					returnData.push({
 						json: {
@@ -1315,7 +1433,7 @@ export class LmStudio implements INodeType {
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({
-						json: { error: (error as Error).message },
+						json: toContinueOnFailJson(error),
 						pairedItem: { item: itemIndex },
 					});
 					continue;

@@ -296,6 +296,90 @@ describe('LmStudio', () => {
 			expect(result[0][0].json.response).toMatchObject({ status: 'loaded' });
 		});
 
+		it('retries model load without ttl when LM Studio rejects the field', async () => {
+			const mock = createExecuteMock({
+				operation: 'loadModel',
+				loadModelName: 'google/gemma-4-26b-a4b-qat',
+				loadAdvancedOptions: {
+					contextLength: 12288,
+					ttlSeconds: 900,
+				},
+			});
+			(mock.helpers.httpRequest as jest.Mock)
+				.mockRejectedValueOnce(new Error("Unrecognized key(s) in object: 'ttl'"))
+				.mockResolvedValueOnce({
+					instance_id: 'google/gemma-4-26b-a4b-qat',
+					status: 'loaded',
+				});
+
+			const result = await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledTimes(2);
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[0][0].body).toMatchObject({
+				model: 'google/gemma-4-26b-a4b-qat',
+				context_length: 12288,
+				ttl: 900,
+			});
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body).toMatchObject({
+				model: 'google/gemma-4-26b-a4b-qat',
+				context_length: 12288,
+			});
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body).not.toHaveProperty('ttl');
+			expect(result[0][0].json.response).toMatchObject({ status: 'loaded' });
+		});
+
+		it('includes request context when model load is canceled', async () => {
+			const mock = createExecuteMock({
+				operation: 'loadModel',
+				loadModelName: 'google/gemma-4-26b-a4b-qat',
+				loadAdvancedOptions: {
+					contextLength: 12288,
+				},
+			});
+			(mock.helpers.httpRequest as jest.Mock).mockRejectedValue(
+				new Error("Failed to load LLM 'google/gemma-4-26b-a4b-qat': Error: Operation canceled."),
+			);
+
+			const execution = node.execute.call(mock);
+
+			await expect(execution).rejects.toThrow(
+				'LM Studio model load failed for "google/gemma-4-26b-a4b-qat" via /api/v1/models/load.',
+			);
+			await expect(execution).rejects.toThrow('Request body:');
+			await expect(execution).rejects.toThrow('Operation canceled');
+		});
+
+		it('returns structured error details on continueOnFail for model load failures', async () => {
+			const mock = createExecuteMock({
+				operation: 'loadModel',
+				loadModelName: 'google/gemma-4-26b-a4b-qat',
+				loadAdvancedOptions: {
+					contextLength: 12288,
+				},
+			});
+			mock.continueOnFail = jest.fn().mockReturnValue(true);
+			(mock.helpers.httpRequest as jest.Mock).mockRejectedValue(
+				new Error("Failed to load LLM 'google/gemma-4-26b-a4b-qat': Error: Operation canceled."),
+			);
+
+			const result = await node.execute.call(mock);
+
+			expect(result[0][0].json).toMatchObject({
+				errorType: 'model_load_failed',
+			});
+			expect(result[0][0].json.error).toContain('LM Studio model load failed');
+			expect(result[0][0].json.errorDetails).toMatchObject({
+				endpoint: '/api/v1/models/load',
+				modelName: 'google/gemma-4-26b-a4b-qat',
+				requestBody: {
+					model: 'google/gemma-4-26b-a4b-qat',
+					context_length: 12288,
+					echo_load_config: true,
+				},
+			});
+			expect(result[0][0].json.errorDetails.error).toContain('Operation canceled');
+		});
+
 		it('unloads a model instance', async () => {
 			const mock = createExecuteMock({
 				operation: 'unloadModel',
