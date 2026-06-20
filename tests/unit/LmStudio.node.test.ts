@@ -254,7 +254,7 @@ describe('LmStudio', () => {
 			});
 			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body.input[0]).toEqual({
 				type: 'text',
-				text: 'Transcribe this page',
+				content: 'Transcribe this page',
 			});
 		});
 

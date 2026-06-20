@@ -278,7 +278,7 @@ async function buildNativeInput(
 
 	return [
 		textInputType === 'text'
-			? { type: 'text', text: message }
+			? { type: 'text', content: message }
 			: { type: 'message', content: message },
 		{ type: 'image', data_url: dataUrl },
 	];
