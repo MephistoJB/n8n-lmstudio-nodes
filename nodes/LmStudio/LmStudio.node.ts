@@ -464,14 +464,6 @@ function isUnsupportedLoadTtlError(error: unknown): boolean {
 	return getErrorText(error).includes("Unrecognized key(s) in object: 'ttl'");
 }
 
-function isNativeTextInputCompatibilityError(error: unknown): boolean {
-	const errorText = getErrorText(error);
-	return (
-		errorText.includes("Expected 'text' | 'image'") ||
-		errorText.includes('Invalid discriminator value')
-	);
-}
-
 function buildLoadModelErrorMessage(
 	modelName: string,
 	requestBody: IDataObject,
@@ -1336,7 +1328,7 @@ export class LmStudio implements INodeType {
 							},
 						);
 					} catch (error) {
-						if (imageBinaryProperty && isNativeTextInputCompatibilityError(error)) {
+						if (imageBinaryProperty) {
 							const compatibilityRequestBody: IDataObject = {
 								...requestBody,
 								input: await buildNativeInput(
