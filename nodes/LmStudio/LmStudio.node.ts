@@ -246,7 +246,7 @@ async function buildNativeInput(
 	itemIndex: number,
 	message: string,
 	imageBinaryProperty?: string,
-	textInputType: 'message' | 'text' = 'message',
+	textInputType: 'message' | 'text' = 'text',
 ): Promise<string | IDataObject[]> {
 	if (!imageBinaryProperty) {
 		return message;
@@ -282,6 +282,19 @@ async function buildNativeInput(
 			: { type: 'message', content: message },
 		{ type: 'image', data_url: dataUrl },
 	];
+}
+
+function cloneNativeRequestBody(body: IDataObject): IDataObject {
+	return {
+		...body,
+		...(Array.isArray(body.input)
+			? {
+					input: body.input.map((entry) =>
+						entry && typeof entry === 'object' ? { ...(entry as IDataObject) } : entry,
+					),
+				}
+			: {}),
+	};
 }
 
 function normalizeQuantization(quantization: unknown): string | undefined {
@@ -1314,46 +1327,71 @@ export class LmStudio implements INodeType {
 						requestBody.previous_response_id = previousResponseId;
 					}
 
-					let response: LmStudioNativeChatResponse;
-					try {
-						response = await lmStudioRequest<LmStudioNativeChatResponse>(
-							this as unknown as RequestContext,
-							credentials,
-							{
-								method: 'POST',
-								path: '/api/v1/chat',
-								body: requestBody,
-								timeoutMs: timeout > 0 ? timeout * 1000 : undefined,
-								abortSignal,
-							},
+					const requestVariants: IDataObject[] = [cloneNativeRequestBody(requestBody)];
+					if (reasoning) {
+						requestVariants.push(
+							...requestVariants.map((variant) => {
+								const withoutReasoning = cloneNativeRequestBody(variant);
+								delete withoutReasoning.reasoning;
+								return withoutReasoning;
+							}),
 						);
-					} catch (error) {
-						if (imageBinaryProperty) {
-							const compatibilityRequestBody: IDataObject = {
-								...requestBody,
-								input: await buildNativeInput(
+					}
+					if (imageBinaryProperty) {
+						requestVariants.push(
+							...requestVariants.map((variant) => ({
+								...cloneNativeRequestBody(variant),
+								input: buildNativeInput(
 									this,
 									items[itemIndex] as INodeExecutionData,
 									itemIndex,
 									message,
 									imageBinaryProperty,
-									'text',
+									'message',
 								),
-							};
+							})),
+						);
+					}
+
+					for (const variant of requestVariants) {
+						if (variant.input instanceof Promise) {
+							variant.input = await variant.input;
+						}
+					}
+
+					const seenVariantKeys = new Set<string>();
+					const dedupedVariants = requestVariants.filter((variant) => {
+						const key = JSON.stringify(variant);
+						if (seenVariantKeys.has(key)) {
+							return false;
+						}
+						seenVariantKeys.add(key);
+						return true;
+					});
+
+					let response: LmStudioNativeChatResponse | undefined;
+					let lastError: unknown;
+					for (const variant of dedupedVariants) {
+						try {
 							response = await lmStudioRequest<LmStudioNativeChatResponse>(
 								this as unknown as RequestContext,
 								credentials,
 								{
 									method: 'POST',
 									path: '/api/v1/chat',
-									body: compatibilityRequestBody,
+									body: variant,
 									timeoutMs: timeout > 0 ? timeout * 1000 : undefined,
 									abortSignal,
 								},
 							);
-						} else {
-							throw error;
+							break;
+						} catch (error) {
+							lastError = error;
 						}
+					}
+
+					if (!response) {
+						throw lastError;
 					}
 
 					const output = Array.isArray(response.output) ? response.output : [];

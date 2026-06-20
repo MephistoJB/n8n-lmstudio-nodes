@@ -171,7 +171,7 @@ describe('LmStudio', () => {
 						temperature: 0,
 						reasoning: 'off',
 						input: [
-							{ type: 'message', content: 'Transcribe this page' },
+							{ type: 'text', content: 'Transcribe this page' },
 							{
 								type: 'image',
 								data_url: 'data:image/png;base64,cG5nLWJ5dGVz',
@@ -210,7 +210,7 @@ describe('LmStudio', () => {
 				expect.objectContaining({
 					body: expect.objectContaining({
 						input: [
-							{ type: 'message', content: 'Transcribe this page' },
+							{ type: 'text', content: 'Transcribe this page' },
 							{
 								type: 'image',
 								data_url: 'data:image/png;base64,cG5nLWJ5dGVz',
@@ -221,7 +221,7 @@ describe('LmStudio', () => {
 			);
 		});
 
-		it('retries native multimodal input with text items for LM Studio compatibility', async () => {
+		it('retries native multimodal input with message items for LM Studio compatibility', async () => {
 			const mock = createExecuteMock({
 				message: 'Transcribe this page',
 				messageAdvancedOptions: {
@@ -249,9 +249,47 @@ describe('LmStudio', () => {
 
 			expect(mock.helpers.httpRequest).toHaveBeenCalledTimes(2);
 			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[0][0].body.input[0]).toEqual({
+				type: 'text',
+				content: 'Transcribe this page',
+			});
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body.input[0]).toEqual({
 				type: 'message',
 				content: 'Transcribe this page',
 			});
+		});
+
+		it('retries native requests without reasoning when the model rejects that option', async () => {
+			const mock = createExecuteMock({
+				message: 'Transcribe this page',
+				messageAdvancedOptions: {
+					apiMode: 'nativeV1',
+					imageBinaryProperty: 'pageImage',
+					reasoning: 'off',
+				},
+			});
+			mock.getInputData = jest.fn().mockReturnValue([
+				{
+					json: {},
+					binary: {
+						pageImage: {
+							mimeType: 'image/png',
+							fileExtension: 'png',
+						},
+					},
+				},
+			]);
+			(mock.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(Buffer.from('png-bytes'));
+			(mock.helpers.httpRequest as jest.Mock)
+				.mockRejectedValueOnce(
+					new Error("Model 'unsloth/gemma-4-31b-it' does not expose reasoning configuration."),
+				)
+				.mockResolvedValueOnce(nativeChatResponse('OCR text'));
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledTimes(2);
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[0][0].body.reasoning).toBe('off');
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body.reasoning).toBeUndefined();
 			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body.input[0]).toEqual({
 				type: 'text',
 				content: 'Transcribe this page',
