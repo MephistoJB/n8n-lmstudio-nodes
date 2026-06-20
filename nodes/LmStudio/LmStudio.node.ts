@@ -658,14 +658,6 @@ export class LmStudio implements INodeType {
 							'OpenAI Compatible keeps structured JSON schema support. Native API v1 exposes LM Studio-specific chat options like context length.',
 					},
 					{
-						displayName: 'Image Binary Property',
-						name: 'imageBinaryProperty',
-						type: 'string',
-						default: '',
-						description:
-							'Native API v1 only. Optional binary property containing an image to send for vision or OCR requests.',
-					},
-					{
 						displayName: 'Context Length',
 						name: 'contextLength',
 						type: 'number',
@@ -674,6 +666,14 @@ export class LmStudio implements INodeType {
 						},
 						default: 0,
 						description: 'Native API v1 only. Maximum context length for the request.',
+					},
+					{
+						displayName: 'Image Binary Property',
+						name: 'imageBinaryProperty',
+						type: 'string',
+						default: '',
+						description:
+							'Native API v1 only. Optional binary property containing an image to send for vision or OCR requests.',
 					},
 					{
 						displayName: 'Max Output Tokens',
