@@ -246,6 +246,7 @@ async function buildNativeInput(
 	itemIndex: number,
 	message: string,
 	imageBinaryProperty?: string,
+	textInputType: 'message' | 'text' = 'message',
 ): Promise<string | IDataObject[]> {
 	if (!imageBinaryProperty) {
 		return message;
@@ -276,7 +277,9 @@ async function buildNativeInput(
 	const dataUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
 
 	return [
-		{ type: 'message', content: message },
+		textInputType === 'text'
+			? { type: 'text', text: message }
+			: { type: 'message', content: message },
 		{ type: 'image', data_url: dataUrl },
 	];
 }
@@ -459,6 +462,14 @@ function getErrorText(error: unknown): string {
 
 function isUnsupportedLoadTtlError(error: unknown): boolean {
 	return getErrorText(error).includes("Unrecognized key(s) in object: 'ttl'");
+}
+
+function isNativeTextInputCompatibilityError(error: unknown): boolean {
+	const errorText = getErrorText(error);
+	return (
+		errorText.includes("Expected 'text' | 'image'") ||
+		errorText.includes('Invalid discriminator value')
+	);
 }
 
 function buildLoadModelErrorMessage(
@@ -1311,17 +1322,47 @@ export class LmStudio implements INodeType {
 						requestBody.previous_response_id = previousResponseId;
 					}
 
-					const response = await lmStudioRequest<LmStudioNativeChatResponse>(
-						this as unknown as RequestContext,
-						credentials,
-						{
-							method: 'POST',
-							path: '/api/v1/chat',
-							body: requestBody,
-							timeoutMs: timeout > 0 ? timeout * 1000 : undefined,
-							abortSignal,
-						},
-					);
+					let response: LmStudioNativeChatResponse;
+					try {
+						response = await lmStudioRequest<LmStudioNativeChatResponse>(
+							this as unknown as RequestContext,
+							credentials,
+							{
+								method: 'POST',
+								path: '/api/v1/chat',
+								body: requestBody,
+								timeoutMs: timeout > 0 ? timeout * 1000 : undefined,
+								abortSignal,
+							},
+						);
+					} catch (error) {
+						if (imageBinaryProperty && isNativeTextInputCompatibilityError(error)) {
+							const compatibilityRequestBody: IDataObject = {
+								...requestBody,
+								input: await buildNativeInput(
+									this,
+									items[itemIndex] as INodeExecutionData,
+									itemIndex,
+									message,
+									imageBinaryProperty,
+									'text',
+								),
+							};
+							response = await lmStudioRequest<LmStudioNativeChatResponse>(
+								this as unknown as RequestContext,
+								credentials,
+								{
+									method: 'POST',
+									path: '/api/v1/chat',
+									body: compatibilityRequestBody,
+									timeoutMs: timeout > 0 ? timeout * 1000 : undefined,
+									abortSignal,
+								},
+							);
+						} else {
+							throw error;
+						}
+					}
 
 					const output = Array.isArray(response.output) ? response.output : [];
 					const messages = output

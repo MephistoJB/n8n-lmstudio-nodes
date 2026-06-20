@@ -221,6 +221,43 @@ describe('LmStudio', () => {
 			);
 		});
 
+		it('retries native multimodal input with text items for LM Studio compatibility', async () => {
+			const mock = createExecuteMock({
+				message: 'Transcribe this page',
+				messageAdvancedOptions: {
+					apiMode: 'nativeV1',
+					imageBinaryProperty: 'pageImage',
+				},
+			});
+			mock.getInputData = jest.fn().mockReturnValue([
+				{
+					json: {},
+					binary: {
+						pageImage: {
+							mimeType: 'image/png',
+							fileExtension: 'png',
+						},
+					},
+				},
+			]);
+			(mock.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(Buffer.from('png-bytes'));
+			(mock.helpers.httpRequest as jest.Mock)
+				.mockRejectedValueOnce(new Error("Invalid discriminator value. Expected 'text' | 'image'"))
+				.mockResolvedValueOnce(nativeChatResponse('OCR text'));
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledTimes(2);
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[0][0].body.input[0]).toEqual({
+				type: 'message',
+				content: 'Transcribe this page',
+			});
+			expect((mock.helpers.httpRequest as jest.Mock).mock.calls[1][0].body.input[0]).toEqual({
+				type: 'text',
+				text: 'Transcribe this page',
+			});
+		});
+
 		it('passes explicit zero-valued inference settings through to native v1', async () => {
 			const mock = createExecuteMock({
 				messageAdvancedOptions: {
