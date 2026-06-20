@@ -21,7 +21,7 @@
 
 ## Project
 
-This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node package for connecting n8n to a local LM Studio instance. The package supports both inference and model lifecycle management from a single node.
+This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node package for connecting n8n to a local LM Studio instance. The package supports chat, image-aware OCR or vision prompts through LM Studio's native API, and model lifecycle management from a single node.
 
 ## Stack
 
@@ -47,7 +47,7 @@ This repository contains the `@mephistojb/n8n-nodes-lmstudio` community node pac
 ## Architecture
 
 - `credentials/LmStudioApi.credentials.ts` -> LM Studio credential definition and credential connectivity test
-- `nodes/LmStudio/LmStudio.node.ts` -> single multi-operation node for chat, listing models, loading models, and unloading models
+- `nodes/LmStudio/LmStudio.node.ts` -> single multi-operation node for chat, optional image-aware OCR or vision prompts, listing models, loading models, and unloading models
 - `tests/unit/LmStudio.node.test.ts` -> unit coverage for auth headers, API mode switching, model management operations, and request shaping
 - `tests/integration/LmStudio.integration.test.ts` -> live LM Studio integration coverage
 - `.github/workflows/ci.yml` -> CI checks for pushes and pull requests

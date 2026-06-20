@@ -10,6 +10,7 @@ An [n8n](https://n8n.io) community node for [LM Studio](https://lmstudio.ai) tha
 - **Advanced request controls**: optional LM Studio API settings are hidden behind `Advanced` collections
 - **Structured JSON output**: OpenAI-compatible chat mode supports JSON schema output
 - **Native LM Studio API support**: use `/api/v1/chat` when you need LM Studio-specific fields such as `context_length`
+- **Vision and OCR input**: native chat mode can attach an image binary property for LM Studio vision models
 
 ## Installation
 
@@ -55,6 +56,7 @@ Advanced options include:
 
 - `API Mode`
 - `System Prompt`
+- `Image Binary Property`
 - `Context Length`
 - `Temperature`
 - `Top P`
@@ -68,6 +70,8 @@ Advanced options include:
 - `Previous Response ID`
 - `Timeout`
 - `Raw Advanced JSON`
+
+When `API Mode` is `Native API V1`, you can set `Image Binary Property` to send an image from the current n8n item as a `data_url` to LM Studio's native `/api/v1/chat` endpoint. This is the recommended path for OCR and vision prompts.
 
 `Raw Advanced JSON` is merged into the outgoing request body so you can pass additional LM Studio API fields without waiting for a node update.
 

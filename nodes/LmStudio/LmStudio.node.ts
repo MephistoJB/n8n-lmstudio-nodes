@@ -222,6 +222,65 @@ function getBooleanOption(options: IDataObject, key: string): boolean | undefine
 	return typeof options[key] === 'boolean' ? (options[key] as boolean) : undefined;
 }
 
+function inferImageMimeType(fileExtension?: string): string | undefined {
+	switch (fileExtension?.toLowerCase()) {
+		case 'jpg':
+		case 'jpeg':
+			return 'image/jpeg';
+		case 'png':
+			return 'image/png';
+		case 'webp':
+			return 'image/webp';
+		case 'gif':
+			return 'image/gif';
+		case 'bmp':
+			return 'image/bmp';
+		default:
+			return undefined;
+	}
+}
+
+async function buildNativeInput(
+	node: IExecuteFunctions,
+	item: INodeExecutionData,
+	itemIndex: number,
+	message: string,
+	imageBinaryProperty?: string,
+): Promise<string | IDataObject[]> {
+	if (!imageBinaryProperty) {
+		return message;
+	}
+
+	const binaryFile = item.binary?.[imageBinaryProperty];
+	if (!binaryFile) {
+		throw new NodeOperationError(
+			node.getNode(),
+			`Binary property "${imageBinaryProperty}" was not found on the input item.`,
+			{ itemIndex },
+		);
+	}
+
+	const mimeType =
+		(typeof binaryFile.mimeType === 'string' && binaryFile.mimeType) ||
+		inferImageMimeType(binaryFile.fileExtension);
+
+	if (!mimeType?.startsWith('image/')) {
+		throw new NodeOperationError(
+			node.getNode(),
+			`Binary property "${imageBinaryProperty}" must contain an image file.`,
+			{ itemIndex },
+		);
+	}
+
+	const buffer = await node.helpers.getBinaryDataBuffer(itemIndex, imageBinaryProperty);
+	const dataUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
+
+	return [
+		{ type: 'message', content: message },
+		{ type: 'image', data_url: dataUrl },
+	];
+}
+
 function normalizeQuantization(quantization: unknown): string | undefined {
 	if (!quantization) {
 		return undefined;
@@ -551,9 +610,17 @@ export class LmStudio implements INodeType {
 				},
 				description: 'The user message to send to the model',
 			},
-			{
-				displayName: 'JSON Schema',
-				name: 'jsonSchema',
+						{
+							displayName: 'Image Binary Property',
+							name: 'imageBinaryProperty',
+							type: 'string',
+							default: '',
+							description:
+								'Native API v1 only. Optional binary property containing an image to send for vision or OCR requests.',
+						},
+						{
+							displayName: 'JSON Schema',
+							name: 'jsonSchema',
 				type: 'json',
 				typeOptions: {
 					rows: 10,
@@ -1046,6 +1113,7 @@ export class LmStudio implements INodeType {
 					}
 
 					let response: IDataObject;
+					const initialRequestBody: IDataObject = { ...requestBody };
 					try {
 						response = await lmStudioRequest<IDataObject>(
 							this as unknown as RequestContext,
@@ -1053,12 +1121,13 @@ export class LmStudio implements INodeType {
 							{
 								method: 'POST',
 								path: '/api/v1/models/load',
-								body: requestBody,
+								body: initialRequestBody,
 							},
 						);
 					} catch (error) {
-						if ('ttl' in requestBody && isUnsupportedLoadTtlError(error)) {
-							delete requestBody.ttl;
+						if ('ttl' in initialRequestBody && isUnsupportedLoadTtlError(error)) {
+							const retryRequestBody: IDataObject = { ...initialRequestBody };
+							delete retryRequestBody.ttl;
 							try {
 								response = await lmStudioRequest<IDataObject>(
 									this as unknown as RequestContext,
@@ -1066,18 +1135,18 @@ export class LmStudio implements INodeType {
 									{
 										method: 'POST',
 										path: '/api/v1/models/load',
-										body: requestBody,
+										body: retryRequestBody,
 									},
 								);
 							} catch (retryError) {
 								throw new NodeOperationError(
 									this.getNode(),
-									buildLoadModelErrorMessage(modelName, requestBody, retryError),
+									buildLoadModelErrorMessage(modelName, retryRequestBody, retryError),
 									{
 										itemIndex,
 										type: 'model_load_failed',
 										description: JSON.stringify(
-											buildLoadModelErrorDetails(modelName, requestBody, retryError),
+											buildLoadModelErrorDetails(modelName, retryRequestBody, retryError),
 										),
 									},
 								);
@@ -1085,12 +1154,12 @@ export class LmStudio implements INodeType {
 						} else {
 							throw new NodeOperationError(
 								this.getNode(),
-								buildLoadModelErrorMessage(modelName, requestBody, error),
+								buildLoadModelErrorMessage(modelName, initialRequestBody, error),
 								{
 									itemIndex,
 									type: 'model_load_failed',
 									description: JSON.stringify(
-										buildLoadModelErrorDetails(modelName, requestBody, error),
+										buildLoadModelErrorDetails(modelName, initialRequestBody, error),
 									),
 								},
 							);
@@ -1165,9 +1234,18 @@ export class LmStudio implements INodeType {
 						);
 					}
 
+					const imageBinaryProperty = getStringOption(advanced, 'imageBinaryProperty');
+					const input = await buildNativeInput(
+						this,
+						items[itemIndex] as INodeExecutionData,
+						itemIndex,
+						message,
+						imageBinaryProperty,
+					);
+
 					const requestBody: IDataObject = {
 						model: modelName,
-						input: message,
+						input,
 						...rawOptions,
 					};
 
@@ -1182,27 +1260,27 @@ export class LmStudio implements INodeType {
 					}
 
 					const temperature = getNumberOption(advanced, 'temperature');
-					if (temperature !== undefined && temperature > 0) {
+					if (temperature !== undefined) {
 						requestBody.temperature = temperature;
 					}
 
 					const topP = getNumberOption(advanced, 'topP');
-					if (topP !== undefined && topP > 0) {
+					if (topP !== undefined) {
 						requestBody.top_p = topP;
 					}
 
 					const topK = getNumberOption(advanced, 'topK');
-					if (topK !== undefined && topK > 0) {
+					if (topK !== undefined) {
 						requestBody.top_k = topK;
 					}
 
 					const minP = getNumberOption(advanced, 'minP');
-					if (minP !== undefined && minP > 0) {
+					if (minP !== undefined) {
 						requestBody.min_p = minP;
 					}
 
 					const repeatPenalty = getNumberOption(advanced, 'repeatPenalty');
-					if (repeatPenalty !== undefined && repeatPenalty > 0) {
+					if (repeatPenalty !== undefined) {
 						requestBody.repeat_penalty = repeatPenalty;
 					}
 
@@ -1217,7 +1295,7 @@ export class LmStudio implements INodeType {
 					}
 
 					const seed = getNumberOption(advanced, 'seed');
-					if (seed !== undefined && seed > 0) {
+					if (seed !== undefined) {
 						requestBody.seed = seed;
 					}
 
@@ -1293,27 +1371,27 @@ export class LmStudio implements INodeType {
 				}
 
 				const temperature = getNumberOption(advanced, 'temperature');
-				if (temperature !== undefined && temperature > 0) {
+				if (temperature !== undefined) {
 					requestBody.temperature = temperature;
 				}
 
 				const topP = getNumberOption(advanced, 'topP');
-				if (topP !== undefined && topP > 0) {
+				if (topP !== undefined) {
 					requestBody.top_p = topP;
 				}
 
 				const topK = getNumberOption(advanced, 'topK');
-				if (topK !== undefined && topK > 0) {
+				if (topK !== undefined) {
 					requestBody.top_k = topK;
 				}
 
 				const minP = getNumberOption(advanced, 'minP');
-				if (minP !== undefined && minP > 0) {
+				if (minP !== undefined) {
 					requestBody.min_p = minP;
 				}
 
 				const repeatPenalty = getNumberOption(advanced, 'repeatPenalty');
-				if (repeatPenalty !== undefined && repeatPenalty > 0) {
+				if (repeatPenalty !== undefined) {
 					requestBody.repeat_penalty = repeatPenalty;
 				}
 
@@ -1323,7 +1401,7 @@ export class LmStudio implements INodeType {
 				}
 
 				const seed = getNumberOption(advanced, 'seed');
-				if (seed !== undefined && seed > 0) {
+				if (seed !== undefined) {
 					requestBody.seed = seed;
 				}
 

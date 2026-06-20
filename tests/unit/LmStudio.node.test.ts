@@ -62,7 +62,10 @@ function createExecuteMock(
 		getExecutionCancelSignal: jest.fn().mockReturnValue(undefined),
 		continueOnFail: jest.fn().mockReturnValue(false),
 		logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
-		helpers: { httpRequest: jest.fn() },
+		helpers: {
+			httpRequest: jest.fn(),
+			getBinaryDataBuffer: jest.fn(),
+		},
 	} as unknown as IExecuteFunctions;
 }
 
@@ -134,6 +137,81 @@ describe('LmStudio', () => {
 			});
 		});
 
+		it('sends native multimodal input for OCR or vision requests', async () => {
+			const mock = createExecuteMock({
+				message: 'Transcribe this page',
+				messageAdvancedOptions: {
+					apiMode: 'nativeV1',
+					imageBinaryProperty: 'pageImage',
+					temperature: 0,
+					reasoning: 'off',
+				},
+			});
+			mock.getInputData = jest.fn().mockReturnValue([
+				{
+					json: {},
+					binary: {
+						pageImage: {
+							mimeType: 'image/png',
+							fileExtension: 'png',
+						},
+					},
+				},
+			]);
+			(mock.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(Buffer.from('png-bytes'));
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue(nativeChatResponse('OCR text'));
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					url: 'http://localhost:1234/api/v1/chat',
+					body: expect.objectContaining({
+						model: 'test-model',
+						temperature: 0,
+						reasoning: 'off',
+						input: [
+							{ type: 'message', content: 'Transcribe this page' },
+							{
+								type: 'image',
+								data_url: 'data:image/png;base64,cG5nLWJ5dGVz',
+							},
+						],
+					}),
+				}),
+			);
+		});
+
+		it('passes explicit zero-valued inference settings through to native v1', async () => {
+			const mock = createExecuteMock({
+				messageAdvancedOptions: {
+					apiMode: 'nativeV1',
+					temperature: 0,
+					topP: 0,
+					topK: 0,
+					minP: 0,
+					repeatPenalty: 0,
+					seed: 0,
+				},
+			});
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue(nativeChatResponse('native-zero'));
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					body: expect.objectContaining({
+						temperature: 0,
+						top_p: 0,
+						top_k: 0,
+						min_p: 0,
+						repeat_penalty: 0,
+						seed: 0,
+					}),
+				}),
+			);
+		});
+
 		it('throws when JSON schema is used with native v1 mode', async () => {
 			const mock = createExecuteMock({
 				jsonSchema: '{"type":"object"}',
@@ -198,6 +276,37 @@ describe('LmStudio', () => {
 			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
 					headers: expect.objectContaining({ Authorization: 'Bearer sk-test-123' }),
+				}),
+			);
+		});
+
+		it('passes explicit zero-valued inference settings through to chat completions', async () => {
+			const mock = createExecuteMock({
+				messageAdvancedOptions: {
+					apiMode: 'openaiCompatible',
+					temperature: 0,
+					topP: 0,
+					topK: 0,
+					minP: 0,
+					repeatPenalty: 0,
+					seed: 0,
+				},
+			});
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue(openAiChatResponse('zero-ok'));
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					url: 'http://localhost:1234/v1/chat/completions',
+					body: expect.objectContaining({
+						temperature: 0,
+						top_p: 0,
+						top_k: 0,
+						min_p: 0,
+						repeat_penalty: 0,
+						seed: 0,
+					}),
 				}),
 			);
 		});
@@ -377,7 +486,8 @@ describe('LmStudio', () => {
 					echo_load_config: true,
 				},
 			});
-			expect(result[0][0].json.errorDetails.error).toContain('Operation canceled');
+			const errorDetails = result[0][0].json.errorDetails as { error?: string };
+			expect(errorDetails.error).toContain('Operation canceled');
 		});
 
 		it('unloads a model instance', async () => {
