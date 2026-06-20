@@ -182,6 +182,45 @@ describe('LmStudio', () => {
 			);
 		});
 
+		it('falls back to a top-level image binary property for older workflows', async () => {
+			const mock = createExecuteMock({
+				message: 'Transcribe this page',
+				imageBinaryProperty: 'pageImage',
+				messageAdvancedOptions: {
+					apiMode: 'nativeV1',
+				},
+			});
+			mock.getInputData = jest.fn().mockReturnValue([
+				{
+					json: {},
+					binary: {
+						pageImage: {
+							mimeType: 'image/png',
+							fileExtension: 'png',
+						},
+					},
+				},
+			]);
+			(mock.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(Buffer.from('png-bytes'));
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue(nativeChatResponse('OCR text'));
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					body: expect.objectContaining({
+						input: [
+							{ type: 'message', content: 'Transcribe this page' },
+							{
+								type: 'image',
+								data_url: 'data:image/png;base64,cG5nLWJ5dGVz',
+							},
+						],
+					}),
+				}),
+			);
+		});
+
 		it('passes explicit zero-valued inference settings through to native v1', async () => {
 			const mock = createExecuteMock({
 				messageAdvancedOptions: {

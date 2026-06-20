@@ -610,17 +610,9 @@ export class LmStudio implements INodeType {
 				},
 				description: 'The user message to send to the model',
 			},
-						{
-							displayName: 'Image Binary Property',
-							name: 'imageBinaryProperty',
-							type: 'string',
-							default: '',
-							description:
-								'Native API v1 only. Optional binary property containing an image to send for vision or OCR requests.',
-						},
-						{
-							displayName: 'JSON Schema',
-							name: 'jsonSchema',
+			{
+				displayName: 'JSON Schema',
+				name: 'jsonSchema',
 				type: 'json',
 				typeOptions: {
 					rows: 10,
@@ -664,6 +656,14 @@ export class LmStudio implements INodeType {
 						],
 						description:
 							'OpenAI Compatible keeps structured JSON schema support. Native API v1 exposes LM Studio-specific chat options like context length.',
+					},
+					{
+						displayName: 'Image Binary Property',
+						name: 'imageBinaryProperty',
+						type: 'string',
+						default: '',
+						description:
+							'Native API v1 only. Optional binary property containing an image to send for vision or OCR requests.',
 					},
 					{
 						displayName: 'Context Length',
@@ -1234,7 +1234,9 @@ export class LmStudio implements INodeType {
 						);
 					}
 
-					const imageBinaryProperty = getStringOption(advanced, 'imageBinaryProperty');
+					const imageBinaryProperty =
+						getStringOption(advanced, 'imageBinaryProperty') ??
+						(this.getNodeParameter('imageBinaryProperty', itemIndex, '') as string);
 					const input = await buildNativeInput(
 						this,
 						items[itemIndex] as INodeExecutionData,
