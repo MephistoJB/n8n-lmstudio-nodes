@@ -137,6 +137,41 @@ describe('LmStudio', () => {
 			});
 		});
 
+		it('accepts native OCR text returned in non-message output items', async () => {
+			const mock = createExecuteMock({
+				messageAdvancedOptions: {
+					apiMode: 'nativeV1',
+					imageBinaryProperty: 'pageImage',
+				},
+			});
+			mock.getInputData = jest.fn().mockReturnValue([
+				{
+					json: {},
+					binary: {
+						pageImage: {
+							mimeType: 'image/png',
+							fileExtension: 'png',
+						},
+					},
+				},
+			]);
+			(mock.helpers.getBinaryDataBuffer as jest.Mock).mockResolvedValue(Buffer.from('png-bytes'));
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue({
+				model_instance_id: 'google/gemma-4-26b-a4b-qat',
+				output: [
+					{ type: 'reasoning_text', text: 'Thinking...' },
+					{ type: 'text', text: 'OCR text from native response' },
+				],
+				stats: { input_tokens: 10, total_output_tokens: 20 },
+				response_id: 'resp_ocr_text',
+			});
+
+			const result = await node.execute.call(mock);
+
+			expect(result[0][0].json.response).toBe('OCR text from native response');
+			expect(result[0][0].json.reasoning).toEqual(['Thinking...']);
+		});
+
 		it('sends native multimodal input for OCR or vision requests', async () => {
 			const mock = createExecuteMock({
 				message: 'Transcribe this page',
@@ -519,6 +554,28 @@ describe('LmStudio', () => {
 			expect(result[0][0].json.response).toMatchObject({ status: 'loaded' });
 		});
 
+		it('normalizes host URLs that already include /v1 before loading a model', async () => {
+			const mock = createExecuteMock(
+				{
+					operation: 'loadModel',
+					loadModelName: 'google/gemma-4-26b-a4b-qat',
+				},
+				{ hostUrl: 'http://localhost:1234/v1' },
+			);
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue({
+				instance_id: 'google/gemma-4-26b-a4b-qat',
+				status: 'loaded',
+			});
+
+			await node.execute.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					url: 'http://localhost:1234/api/v1/models/load',
+				}),
+			);
+		});
+
 		it('retries model load without ttl when LM Studio rejects the field', async () => {
 			const mock = createExecuteMock({
 				operation: 'loadModel',
@@ -656,6 +713,19 @@ describe('LmStudio', () => {
 			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
 					headers: expect.objectContaining({ Authorization: 'Bearer sk-test-123' }),
+				}),
+			);
+		});
+
+		it('normalizes host URLs that already include /api/v1 for load options requests', async () => {
+			const mock = createLoadOptionsMock({ hostUrl: 'http://localhost:1234/api/v1' });
+			(mock.helpers.httpRequest as jest.Mock).mockResolvedValue({ models: [] });
+
+			await node.methods.loadOptions.getAllModels.call(mock);
+
+			expect(mock.helpers.httpRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					url: 'http://localhost:1234/api/v1/models',
 				}),
 			);
 		});

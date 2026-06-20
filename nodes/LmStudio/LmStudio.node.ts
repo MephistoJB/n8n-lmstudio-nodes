@@ -106,6 +106,8 @@ interface LmStudioOpenAiResponse {
 interface LmStudioNativeOutputItem {
 	type: string;
 	content?: string;
+	text?: string;
+	output_text?: string;
 	tool?: string;
 	arguments?: Record<string, unknown>;
 	output?: string;
@@ -143,10 +145,21 @@ const JSON_SCHEMA_SAMPLE = `
 
 function normalizeHostUrl(hostUrl: string): string {
 	const trimmed = hostUrl.trim();
-	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-		return trimmed.replace(/\/+$/, '');
+	const withProtocol =
+		trimmed.startsWith('http://') || trimmed.startsWith('https://')
+			? trimmed
+			: `http://${trimmed}`;
+
+	try {
+		const url = new URL(withProtocol);
+		url.pathname = url.pathname.replace(/\/+(api\/v[01]|v[01])\/?$/i, '').replace(/\/+$/, '');
+		return url.toString().replace(/\/+$/, '');
+	} catch {
+		if (withProtocol.startsWith('http://') || withProtocol.startsWith('https://')) {
+			return withProtocol.replace(/\/+$/, '').replace(/\/+(api\/v[01]|v[01])$/i, '');
+		}
+		return withProtocol.replace(/\/+$/, '').replace(/\/+(api\/v[01]|v[01])$/i, '');
 	}
-	return `http://${trimmed}`.replace(/\/+$/, '');
 }
 
 function buildUrl(hostUrl: string, path: string): string {
@@ -216,6 +229,18 @@ function getNumberOption(options: IDataObject, key: string): number | undefined 
 function getStringOption(options: IDataObject, key: string): string | undefined {
 	const value = options[key];
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function extractNativeOutputText(item: LmStudioNativeOutputItem): string | undefined {
+	const candidates = [item.content, item.text, item.output_text, item.output];
+
+	for (const candidate of candidates) {
+		if (typeof candidate === 'string' && candidate.trim()) {
+			return candidate;
+		}
+	}
+
+	return undefined;
 }
 
 function getBooleanOption(options: IDataObject, key: string): boolean | undefined {
@@ -1396,11 +1421,30 @@ export class LmStudio implements INodeType {
 
 					const output = Array.isArray(response.output) ? response.output : [];
 					const messages = output
-						.filter((item) => item.type === 'message' && item.content)
-						.map((item) => item.content as string);
+						.map((item) => ({
+							type: item.type,
+							text: extractNativeOutputText(item),
+						}))
+						.filter(
+							(item) =>
+								Boolean(item.text) &&
+								(item.type === 'message' ||
+									item.type === 'text' ||
+									item.type === 'output_text' ||
+									item.type === 'assistant'),
+						)
+						.map((item) => item.text as string);
 					const reasoningItems = output
-						.filter((item) => item.type === 'reasoning' && item.content)
-						.map((item) => item.content as string);
+						.map((item) => ({
+							type: item.type,
+							text: extractNativeOutputText(item),
+						}))
+						.filter(
+							(item) =>
+								Boolean(item.text) &&
+								(item.type === 'reasoning' || item.type === 'reasoning_text'),
+						)
+						.map((item) => item.text as string);
 					const toolCalls = output.filter((item) => item.type === 'tool_call');
 
 					if (messages.length === 0) {
